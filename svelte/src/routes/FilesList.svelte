@@ -205,8 +205,8 @@
         </div>
 
         <!-- Metadata: shown normally or on hover in compact mode -->
-        <div class="{gallerySettings.compact ? 'absolute bottom-0 left-0 right-0 bg-black/80 text-white p-3 opacity-0 group-hover:opacity-100 transition-opacity' : 'mt-1 overflow-hidden'}">
-          <p class="font-bold {gallerySettings.compact ? 'text-sm truncate' : 'max-h-12 leading-6 overflow-auto'}">
+        <div class="{gallerySettings.compact ? 'absolute bottom-0 left-0 right-0 bg-black/80 text-white p-3 opacity-0 group-hover:opacity-100 transition-opacity overflow-auto max-h-32' : 'mt-1 overflow-hidden'}">
+          <p class="font-bold {gallerySettings.compact ? 'text-sm break-words' : 'max-h-12 leading-6 overflow-auto'}">
             {file.name}
           </p>
           {#if !gallerySettings.compact}
@@ -217,7 +217,7 @@
               {file.formattedSize}
             </p>
           {:else}
-            <p class="text-sm opacity-90 truncate">
+            <p class="text-sm opacity-90">
               {file.formattedDatetime} • {file.formattedSize}
             </p>
           {/if}
