@@ -4,7 +4,16 @@
   import { t } from 'svelte-i18n';
   import type { FOLDER_TYPES } from './utils';
   import MediaShow from './MediaShow.svelte';
+  import GalleryControls from './GalleryControls.svelte';
   import type Toast from './Toast.svelte';
+  import {
+    loadGallerySettings,
+    saveGallerySettings,
+    getGridClasses,
+    getPaddingClass,
+    getItemHeightClass,
+    type GallerySettings,
+  } from '$lib/gallerySettings';
 
   export let comfyUrl: string;
   export let folderType: FOLDER_TYPES;
@@ -27,6 +36,17 @@
   let searchQuery = '';
   let searchRegex = new RegExp('');
   let scrollTop = 0;
+
+  // Gallery view settings
+  let gallerySettings: GallerySettings = loadGallerySettings();
+  $: gridClasses = getGridClasses(gallerySettings);
+  $: paddingClass = getPaddingClass(gallerySettings.compact);
+  $: itemHeightClass = getItemHeightClass(gallerySettings.size, gallerySettings.compact);
+
+  function onGallerySettingsChange(event: CustomEvent<GallerySettings>) {
+    gallerySettings = event.detail;
+    saveGallerySettings(gallerySettings);
+  }
 
   $: tt = function(key: string) {
     return $t('filesList.' + key);
@@ -136,49 +156,99 @@
   />
 </div>
 
-<div class="grid grid-cols-4 lg:grid-cols-6 gap-2">
+<!-- Gallery View Controls -->
+<GalleryControls settings={gallerySettings} on:change={onGallerySettingsChange} />
+
+<div class={gridClasses}>
   {#each files
     .filter((f) => searchRegex.test(f.name.toLowerCase()))
     .slice(0, showCursor) as file}
     {#if WHITE_EXTS.includes(file.fileType)}
-      <div class="p-2 bg-info-content">
-        <div class="flex items-center">
-          <MediaShow {file} styleClass="w-full h-16 sm:h-36" {onClickDir} />
+      <div class="{paddingClass} bg-info-content relative group flex flex-col">
+        <!-- Compact mode: actions overlay on top (visible on hover) -->
+        {#if gallerySettings.compact && file.type != 'dir'}
+          <div class="absolute top-0 left-0 right-0 z-10 bg-black/70 p-2 flex gap-2 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            {#if comfyApp}
+              <button
+                class="btn btn-sm btn-accent"
+                on:click={async () => await onLoadWorkflow(file, comfyApp, toast)}
+                title={$t('common.btn.load')}
+                >{$t('common.btn.load')}</button
+              >
+            {/if}
+            <button
+              class="btn btn-sm btn-accent"
+              on:click={async () => await onCollect(file)}
+              title={$t('common.btn.save')}
+              >{$t('common.btn.save')}</button
+            >
+            <button
+              class="btn btn-sm btn-error"
+              on:click={async () => await onDelete(file)}
+              title={$t('common.btn.delete')}
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 2v4h6v2h-2v14H4V8H2V6h6V2h8zm-2 2h-4v2h4V4zm0 4H6v12h12V8h-4zm-5 2h2v8H9v-8zm6 0h-2v8h2v-8z" fill="#fff"/>
+              </svg>
+            </button>
+          </div>
+        {/if}
+
+        <!-- Image container -->
+        <div class="flex items-center {itemHeightClass}">
+          <MediaShow
+            {file}
+            styleClass="w-full h-full"
+            {onClickDir}
+            fitMode={gallerySettings.fit}
+          />
         </div>
 
-        <p class="font-bold max-h-12 leading-6 overflow-auto mt-1">
-          {file.name}
-        </p>
-        <p class="hidden sm:block text-gray-500 text-xs">
-          {file.formattedDatetime}
-        </p>
-        <p class="hidden sm:block text-gray-500 text-xs">
-          {file.formattedSize}
-        </p>
+        <!-- Metadata: shown normally or on hover in compact mode -->
+        <div class="{gallerySettings.compact ? 'absolute bottom-0 left-0 right-0 bg-black/80 text-white p-3 opacity-0 group-hover:opacity-100 transition-opacity' : 'mt-1 overflow-hidden'}">
+          <p class="font-bold {gallerySettings.compact ? 'text-sm truncate' : 'max-h-12 leading-6 overflow-auto'}">
+            {file.name}
+          </p>
+          {#if !gallerySettings.compact}
+            <p class="hidden sm:block text-gray-500 text-xs truncate">
+              {file.formattedDatetime}
+            </p>
+            <p class="hidden sm:block text-gray-500 text-xs truncate">
+              {file.formattedSize}
+            </p>
+          {:else}
+            <p class="text-sm opacity-90 truncate">
+              {file.formattedDatetime} • {file.formattedSize}
+            </p>
+          {/if}
+        </div>
 
-        <div class="">
-          {#if comfyApp && file.type != 'dir'}
+        <!-- Normal mode: actions at bottom -->
+        {#if !gallerySettings.compact}
+          <div class="mt-1">
+            {#if comfyApp && file.type != 'dir'}
+              <button
+                class="btn btn-link btn-sm p-0 no-underline text-accent"
+                on:click={async () => await onLoadWorkflow(file, comfyApp, toast)}
+                >{$t('common.btn.load')}</button
+              >
+            {/if}
             <button
               class="btn btn-link btn-sm p-0 no-underline text-accent"
-              on:click={async () => await onLoadWorkflow(file, comfyApp, toast)}
-              >{$t('common.btn.load')}</button
+              on:click={async () => await onCollect(file)}
+              >{$t('common.btn.save')}</button
             >
-          {/if}
-          <button
-            class="btn btn-link btn-sm p-0 no-underline text-accent"
-            on:click={async () => await onCollect(file)}
-            >{$t('common.btn.save')}</button
-          >
-          <button
-            class="btn btn-link btn-sm p-0 no-underline text-error float-right"
-            on:click={async () => await onDelete(file)}
-          >
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16 2v4h6v2h-2v14H4V8H2V6h6V2h8zm-2 2h-4v2h4V4zm0 4H6v12h12V8h-4zm-5 2h2v8H9v-8zm6 0h-2v8h2v-8z" fill="#f77"/>
-            </svg>
-            {$t('common.btn.delete')}
-          </button>
-        </div>
+            <button
+              class="btn btn-link btn-sm p-0 no-underline text-error float-right"
+              on:click={async () => await onDelete(file)}
+            >
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 2v4h6v2h-2v14H4V8H2V6h6V2h8zm-2 2h-4v2h4V4zm0 4H6v12h12V8h-4zm-5 2h2v8H9v-8zm6 0h-2v8h2v-8z" fill="#f77"/>
+              </svg>
+              {$t('common.btn.delete')}
+            </button>
+          </div>
+        {/if}
       </div>
     {/if}
   {/each}

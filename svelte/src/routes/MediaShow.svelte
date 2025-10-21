@@ -1,7 +1,12 @@
 <script lang="ts">
+  import { getFitClass, type FitMode } from '$lib/gallerySettings';
+
   export let file: any;
   export let styleClass: string;
   export let onClickDir: Function;
+  export let fitMode: FitMode = 'contain';
+
+  $: fitClass = getFitClass(fitMode);
 </script>
 
 
@@ -37,14 +42,14 @@
       {/if}
       {#if file.fileType === 'image'}
         <img
-          class="h-full w-full object-contain"
+          class="h-full w-full {fitClass}"
           loading="lazy"
           src={file.previewUrl}
           alt={file.name} />
       {/if}
       {#if file.fileType === 'video'}
         <video
-          class="h-full w-full object-contain pb-0.5 border-0.5 border-black"
+          class="h-full w-full {fitClass} pb-0.5 border-0.5 border-black"
           src={file.previewUrl}
           loop={true}
           autoplay={true}
